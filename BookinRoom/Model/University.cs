@@ -5,13 +5,13 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BasicConnection.Context;
+using System.Transactions;
 
-namespace BookingRoom
+namespace BookingRoom.Model
 {
     public class University
     {
-        private static readonly string connectionString =
-        "Data Source=LAPTOP-FTO3M4EL;Database=booking_room;Integrated Security=True;Connect Timeout=30;Encrypt=False;";
 
         public int? Id { get; set; }
         public string Name { get; set; }
@@ -19,10 +19,10 @@ namespace BookingRoom
         // --------------------------------------------------------------------------------- Database Universities
 
         // GET : Universities
-        public static List<University> GetUniversities()
+        public List<University> GetUniversities()
         {
             var universities = new List<University>();
-            using SqlConnection connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             try
             {
                 SqlCommand command = new SqlCommand();
@@ -59,17 +59,18 @@ namespace BookingRoom
         }
 
         // GET : Universities(5)
-        public static List<University> GetUniversitiesById(University university)
+        public University GetUniversitiesById(University university)
         {
-            var universities = new List<University>();
-            using SqlConnection connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
+            connection.Open();
+            SqlTransaction transaction = connection.BeginTransaction();
             try
             {
+
                 SqlCommand command = new SqlCommand();
                 command.Connection = connection;
                 command.CommandText = "SELECT * FROM tb_m_universities WHERE Id = (@id)";
-
-                connection.Open();
+                command.Transaction = transaction;
 
                 // Membuat parameter
                 var pId = new SqlParameter();
@@ -79,7 +80,6 @@ namespace BookingRoom
 
                 // Menambahkan parameter ke command
                 command.Parameters.Add(pId);
-
                 using SqlDataReader reader = command.ExecuteReader();
                 if (reader.HasRows)
                 {
@@ -87,30 +87,28 @@ namespace BookingRoom
                     {
                         university.Id = reader.GetInt32(0);
                         university.Name = reader.GetString(1);
-
-                        universities.Add(university);
                     }
 
-                    return universities;
+                    return university;
                 }
-
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                Console.WriteLine(ex.Message);
+                transaction.Rollback();
             }
             finally
             {
                 connection.Close();
             }
-            return new List<University>();
+
+            return new University();
         }
 
         // INSERT : Universities
-        public static int InsertUniversity(University university)
+        public int InsertUniversity(University university)
         {
             int result = 0;
-            using var connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             connection.Open();
 
             SqlTransaction transaction = connection.BeginTransaction();
@@ -152,10 +150,10 @@ namespace BookingRoom
         }
 
         // UPDATE : Universities(obj)
-        public static int UpdateUniversity(University university)
+        public int UpdateUniversity(University university)
         {
             int result = 0;
-            using var connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             connection.Open();
 
             SqlTransaction transaction = connection.BeginTransaction();
@@ -203,10 +201,10 @@ namespace BookingRoom
         }
 
         // DELETE : Universities(5)
-        public static int DeleteUniversity(University university)
+        public int DeleteUniversity(University university)
         {
             int result = 0;
-            using var connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             connection.Open();
 
             SqlTransaction transaction = connection.BeginTransaction();
@@ -244,6 +242,23 @@ namespace BookingRoom
             }
 
             return result;
+        }
+
+        public int GetLastUniversityID()
+        {
+            using var connection = MyConnection.Get();
+            connection.Open();
+
+                // Command melakukan select
+                SqlCommand command = new SqlCommand("SELECT TOP 1 id FROM tb_m_universities ORDER BY id DESC;", connection);
+
+                // Menjalankan select dan mencari ID terakhir
+                int lastInsertedId = Convert.ToInt32(command.ExecuteScalar());
+
+                connection.Close();
+
+                return lastInsertedId;
+           
         }
 
 

@@ -6,23 +6,62 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using BasicConnection.Context;
 
-namespace BookingRoom
+namespace BookingRoom.Model
 {
     public class Profiling
     {
-        private static readonly string connectionString =
-       "Data Source=LAPTOP-FTO3M4EL;Database=booking_room;Integrated Security=True;Connect Timeout=30;Encrypt=False;";
 
         public string EmployeeId { get; set; }
         public int EducationId { get; set; }
 
 
+        public List<Profiling> GetProfilings()
+        {
+            var profilings = new List<Profiling>();
+            using var connection = MyConnection.Get();
+            try
+            {
+                SqlCommand command = new SqlCommand();
+                command.Connection = connection;
+                command.CommandText = "SELECT * FROM tb_tr_profilings";
+
+                connection.Open();
+
+                using SqlDataReader reader = command.ExecuteReader();
+                if (reader.HasRows)
+                {
+                    while (reader.Read())
+                    {
+                        var profiling = new Profiling();
+                        profiling.EmployeeId = reader.GetGuid(0).ToString();
+                        profiling.EducationId = reader.GetInt32(1);
+
+                        profilings.Add(profiling);
+                    }
+
+                    return profilings;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                connection.Close();
+            }
+            return new List<Profiling>();
+        }
+
+
         // INSERT : Profiling
-        public static int InsertProfiling(Profiling profiling)
+        public int InsertProfiling(Profiling profiling)
         {
             int result = 0;
-            using var connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             connection.Open();
 
             SqlTransaction transaction = connection.BeginTransaction();

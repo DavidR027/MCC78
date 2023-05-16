@@ -4,12 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace BookingRoom
+namespace BookingRoom.Model
 {
-    public class AccountRole
+    public class Department
     {
         public string Id { get; set; }
-        public string AccountId { get; set; }
-        public string RoleId { get; set; }
+        public string Name { get; set; }
     }
 }

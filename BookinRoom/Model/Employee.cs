@@ -5,14 +5,17 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BasicConnection.Context;
+using BookingRoom.View;
 
-namespace BookingRoom
+namespace BookingRoom.Model
 {
     public class Employee
     {
-        private static readonly string connectionString =
-       "Data Source=LAPTOP-FTO3M4EL;Database=booking_room;Integrated Security=True;Connect Timeout=30;Encrypt=False;";
-
+        private Education _education = new Education();
+        private University _university = new University();
+        private Profiling _profiling = new Profiling();
+        private Menu _menu = new Menu();
         public string Id { get; set; }
         public string NIK { get; set; }
         public string FirstName { get; set; }
@@ -25,11 +28,59 @@ namespace BookingRoom
         public string DepartmentId { get; set; }
 
 
+        public List<Employee> GetEmployees()
+        {
+            var employees = new List<Employee>();
+            using var connection = MyConnection.Get();
+            try
+            {
+                SqlCommand command = new SqlCommand();
+                command.Connection = connection;
+                command.CommandText = "SELECT * FROM tb_m_employees";
+
+                connection.Open();
+
+                using SqlDataReader reader = command.ExecuteReader();
+                if (reader.HasRows)
+                {
+                    while (reader.Read())
+                    {
+                        var employee = new Employee();
+                        employee.Id = reader.GetGuid(0).ToString();
+                        employee.NIK = reader.GetString(1);
+                        employee.FirstName = reader.GetString(2);
+                        employee.LastName = reader.GetString(3);
+                        employee.Birthdate = reader.GetDateTime(4);
+                        employee.Gender = reader.GetString(5);
+                        employee.HiringDate = reader.GetDateTime(6);
+                        employee.Email = reader.GetString(7);
+                        employee.PhoneNumber = reader.GetString(8);
+                        employee.DepartmentId = reader.GetString(9);
+
+                        employees.Add(employee);
+                    }
+
+                    return employees;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                connection.Close();
+            }
+            return new List<Employee>();
+        }
+
+
         // INSERT : Employee
-        public static int InsertEmployee(Employee employee)
+        public int InsertEmployee(Employee employee)
         {
             int result = 0;
-            using var connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             connection.Open();
 
             SqlTransaction transaction = connection.BeginTransaction();
@@ -123,6 +174,58 @@ namespace BookingRoom
             }
 
             return result;
+        }
+
+        public string GetLastEmpID(string NIK)
+        {
+            using var connection = MyConnection.Get();
+            connection.Open();
+
+            // Command melakukan select
+            SqlCommand command = new SqlCommand("SELECT TOP 1 id FROM tb_m_employees WHERE NIK = (@nik);", connection);
+
+            // Membuat parameter
+            var Nik = new SqlParameter();
+            Nik.ParameterName = "@nik";
+            Nik.SqlDbType = SqlDbType.Char;
+            Nik.Size = 6;
+            Nik.Value = NIK;
+
+            command.Parameters.Add(Nik);
+
+            // Menjalankan select dan mencari ID terakhir
+            string lastInsertedId = Convert.ToString(command.ExecuteScalar());
+
+            connection.Close();
+
+            return lastInsertedId;
+
+        }
+
+        public List<CombineTable> checkAll()
+        {
+            var getInfo = from emp in GetEmployees()
+                          join pro in _profiling.GetProfilings() on emp.Id equals pro.EmployeeId
+                          join edu in _education.GetEducation() on pro.EducationId equals edu.Id
+                          join uni in _university.GetUniversities() on edu.UniversityId equals
+                          uni.Id
+                          select new CombineTable
+                          {
+                              NIK = emp.NIK,
+                              FirstName = emp.FirstName,
+                              LastName = emp.LastName,
+                              Birthdate = emp.Birthdate,
+                              Gender = emp.Gender,
+                              HiringDate = emp.HiringDate,
+                              Email = emp.Email,
+                              PhoneNumber = emp.PhoneNumber,
+                              Major = edu.Major,
+                              Degree = edu.Degree,
+                              GPA = edu.GPA,
+                              Name = uni.Name
+                          };
+            return getInfo.ToList();
+
         }
 
     }

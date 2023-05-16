@@ -5,13 +5,12 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BasicConnection.Context;
 
-namespace BookingRoom
+namespace BookingRoom.Model
 {
     public class Education
     {
-        private static readonly string connectionString =
-       "Data Source=LAPTOP-FTO3M4EL;Database=booking_room;Integrated Security=True;Connect Timeout=30;Encrypt=False;";
 
         public int Id { get; set; }
         public string Major { get; set; }
@@ -23,10 +22,10 @@ namespace BookingRoom
         // --------------------------------------------------------------------------------- Database Education
 
         // GET : Education
-        public static List<Education> GetEducation()
+        public List<Education> GetEducation()
         {
             var educations = new List<Education>();
-            using SqlConnection connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             try
             {
                 SqlCommand command = new SqlCommand();
@@ -66,17 +65,19 @@ namespace BookingRoom
         }
 
         // GET : Education(5)
-        public static List<Education> GetEducationById(Education education)
+        public Education GetEducationById(Education education)
         {
-            var educations = new List<Education>();
-            using SqlConnection connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
+            connection.Open();
+
+            SqlTransaction transaction = connection.BeginTransaction();
             try
             {
                 SqlCommand command = new SqlCommand();
                 command.Connection = connection;
                 command.CommandText = "SELECT * FROM tb_m_educations WHERE Id = (@id)";
-
-                connection.Open();
+                command.Transaction = transaction;
+             
 
                 // Membuat parameter
                 var pId = new SqlParameter();
@@ -98,10 +99,9 @@ namespace BookingRoom
                         education.GPA = reader.GetString(3);
                         education.UniversityId = reader.GetInt32(4);
 
-                        educations.Add(education);
                     }
 
-                    return educations;
+                    return education;
                 }
 
             }
@@ -113,14 +113,14 @@ namespace BookingRoom
             {
                 connection.Close();
             }
-            return new List<Education>();
+            return new Education();
         }
 
         // INSERT : Education
-        public static int InsertEducation(Education education)
+        public int InsertEducation(Education education)
         {
             int result = 0;
-            using var connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             connection.Open();
 
             SqlTransaction transaction = connection.BeginTransaction();
@@ -182,10 +182,10 @@ namespace BookingRoom
         }
 
         // UPDATE : Education(obj)
-        public static int UpdateEducation(Education education)
+        public int UpdateEducation(Education education)
         {
             int result = 0;
-            using var connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             connection.Open();
 
             SqlTransaction transaction = connection.BeginTransaction();
@@ -253,10 +253,10 @@ namespace BookingRoom
         }
 
         // DELETE : Education(5)
-        public static int DeleteEducation(Education education)
+        public int DeleteEducation(Education education)
         {
             int result = 0;
-            using var connection = new SqlConnection(connectionString);
+            using var connection = MyConnection.Get();
             connection.Open();
 
             SqlTransaction transaction = connection.BeginTransaction();
@@ -294,6 +294,23 @@ namespace BookingRoom
             }
 
             return result;
+        }
+
+        public int GetLastEducationID()
+        {
+            using var connection = MyConnection.Get();
+            connection.Open();
+
+                // Command melakukan select
+                SqlCommand command = new SqlCommand("SELECT TOP 1 id FROM tb_m_educations ORDER BY id DESC;", connection);
+
+                // Menjalankan select dan mencari ID terakhir
+                int lastInsertedId = Convert.ToInt32(command.ExecuteScalar());
+
+                connection.Close();
+
+                return lastInsertedId;
+            
         }
 
     }
